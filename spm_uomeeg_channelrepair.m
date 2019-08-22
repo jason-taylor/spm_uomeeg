@@ -15,6 +15,7 @@ function [D,montagefname,montage] = spm_uomeeg_channelrepair(S)
 %
 %  spm_uomeeg tools
 %  by Jason Taylor (09/Mar/2018) jason.taylor@manchester.ac.uk
+%   + 21/Aug/2019: fixed indexing of repair (failed when EOG weren't last!)
 
 %-------------------------------------------------------------------------
 
@@ -52,7 +53,7 @@ end
 % Good:
 eeginds_good = indchantype(D,'EEG','GOOD');
 eegchans_good = chanlabels(D,eeginds_good);
-pos_good = coor2D(D,eeginds_good);
+%pos_good = coor2D(D,eeginds_good); % not necessary? (jt 21/Aug/2019)
 
 % Bad:
 eeginds_bad = D.badchannels;
@@ -74,10 +75,14 @@ if any(eeginds_bad)
     cfg.lambda         = 1e-5;
     
     [~,repair] = ft_channelrepair_jt(cfg,data);
+    [~,~,eeginds_bad_interp] = intersect(eegchans_bad,data.elec.label,'stable');
+    % ^ added to align indices in repair and tra! (jt 21/Aug/2019)
+    %   Thanks to Emily Pye and Nayab Begum for finding this bug.
     
     tra = eye(size(D,1));
     tra(eeginds_bad,:) = 0;
-    tra(eeginds_bad,eeginds_good) = repair(eeginds_bad,:);
+    tra(eeginds_bad,eeginds_good) = repair(eeginds_bad_interp,:);
+    % ^ edited to align indices in repair and tra! (jt 21/Aug/2019)
     
     % Save as montage file:
     clear montage
