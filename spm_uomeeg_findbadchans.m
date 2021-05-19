@@ -16,6 +16,7 @@ function [D,bads,corrfname] = spm_uomeeg_findbadchans(S)
 %  by Jason Taylor (09/Mar/2018) jason.taylor@manchester.ac.uk
 
 % *Base it on z-score instead of r thresh?
+% *Base it on spectral power rather than time-domain signal?
 
 %--------------------------------------------------
 % This function looks for correlations between each channel and its 3
@@ -49,16 +50,30 @@ goods = indchantype(D,'EEG');
 zcnnm = -Inf; i=0; bads=[];
 allcnnm={}; allR={}; allz={};
 
+d = selectdata(D,chanlabels(D,goods),[],[]);
+d = reshape(d,size(d,1),size(d,2)*size(d,3));
+[spec,fq] = spectopo(d,0,D.fsample,'plot','on');
+
 while min(zcnnm)<thresh
     i=i+1; % iterate
     fprintf('++ Iteration %d ... ',i);
     % Get correlations:
-    d = selectdata(D,chanlabels(D,goods),[],[]);
-    R = corrcoef(reshape(d,size(d,1),size(d,2)*size(d,3))');
+    %d = selectdata(D,chanlabels(D,goods),[],[]);
+    %d = d(goods,:);
+    isgood = ismember(goods,indchantype(D,'EEG'));
+    %d = d(isgood,:);
+    spec = spec(isgood,:);
+    %R = corrcoef(reshape(d,size(d,1),size(d,2)*size(d,3))');
+    R = corrcoef(spec(:,fq<48)');
     allR{i} = R;
     % Get NNs:
     pos = D.coor2D(goods)';
-    [idx,dist] = knnsearch(pos,pos,'dist','euclidean','k',nNN+1);
+    if ~isempty(which('knnsearch')); % requires toolbox
+        [idx,dist] = knnsearch(pos,pos,'dist','euclidean','k',nNN+1);
+    else
+        [idx,dist] = spm_uomeeg_getnearestchans(pos,pos,nNN+1);
+        dist = abs(dist); % ??
+    end
     % Get NN correlations for each channel:
     cnn = [];
     for c=1:length(goods)
@@ -83,19 +98,19 @@ while min(zcnnm)<thresh
         fprintf('MinZ: %.2f (r=%.2f)\tBad: %s\n',zcnnm(ind),cnnm(ind),char(D.chanlabels(bads(i))));
     else
         %fprintf('No corr<%.2f: DONE.\n',thresh)
-        fprintf('No Zcorr<%.2f: DONE.\n',thresh)
+        fprintf('MinZ: %.2f (r=%.2f)\tNo Zcorr<%.2f: DONE.\n',min(zcnnm),min(cnnm),thresh)
     end
 end
 fprintf('++ Found %d bad channels.\n',length(bads));
 
-% Add (to existing) any new bad channels:
-if any(bads)
-    D = badchannels(D,bads,1);
-    D.save;
-end
-
-% Save correlation matrixes and mean nn correlation vectors (per iteration)
-savefname = sprintf('badchan_correlations_%s',fstem);
-save(savefname,'allR','allcnnm','allz');
+% % Add (to existing) any new bad channels:
+% if any(bads)
+%     D = badchannels(D,bads,1);
+%     D.save;
+% end
+% 
+% % Save correlation matrices and mean nn correlation vectors (per iteration)
+% savefname = sprintf('badchan_correlations_%s',fstem);
+% save(savefname,'allR','allcnnm','allz');
 
 return

@@ -15,7 +15,8 @@ function [D,montagefname,montage] = spm_uomeeg_channelrepair(S)
 %
 %  spm_uomeeg tools
 %  by Jason Taylor (09/Mar/2018) jason.taylor@manchester.ac.uk
-%   + 21/Aug/2019: fixed indexing of repair (failed when EOG weren't last!)
+%   + 21/Aug/2019 jt: fixed indexing of repair (failed when EOG weren't last!)
+%   + 17/May/2021 jt: interpolation now ignores non-EEG channels
 
 %-------------------------------------------------------------------------
 
@@ -64,6 +65,20 @@ if any(eeginds_bad)
     % Convert to fieldtrip format:
     data = spm2fieldtrip(D);
     
+    % hack(!) to get rid of non-EEG channels:
+    chkeep = intersect(1:74,indchantype(D,'EEG'));
+    data.label = data.label(chkeep);
+    data.trial = data.trial(1);
+    data.trial{1} = data.trial{1}(chkeep,:);
+    data.time = data.time(1);
+    data.trialinfo = data.trialinfo(1);
+    data.elec.chanpos = data.elec.chanpos(chkeep,:);
+    data.elec.chantype = data.elec.chantype(chkeep);
+    data.elec.chanunit = data.elec.chanunit(chkeep);
+    data.elec.elecpos = data.elec.elecpos(chkeep,:);
+    data.elec.label = data.elec.label(chkeep);
+    data.elec.tra = data.elec.tra(chkeep,chkeep);
+        
     % Interpolate:
     cfg = [];
     cfg.method         = 'spline';
@@ -79,7 +94,7 @@ if any(eeginds_bad)
     % ^ added to align indices in repair and tra! (jt 21/Aug/2019)
     %   Thanks to Emily Pye and Nayab Begum for finding this bug.
     
-    tra = eye(size(D,1));
+    tra = eye(length(indchantype(D,'EEG')));
     tra(eeginds_bad,:) = 0;
     tra(eeginds_bad,eeginds_good) = repair(eeginds_bad_interp,:);
     % ^ edited to align indices in repair and tra! (jt 21/Aug/2019)
@@ -87,8 +102,10 @@ if any(eeginds_bad)
     % Save as montage file:
     clear montage
     montage.tra = tra;
-    montage.labelorg = chanlabels(D);
-    montage.labelnew = chanlabels(D);
+    %montage.labelorg = chanlabels(D);
+    %montage.labelnew = chanlabels(D);
+    montage.labelorg = chanlabels(D,indchantype(D,'EEG'));
+    montage.labelnew = chanlabels(D,indchantype(D,'EEG'));
     save(montagefname,'montage');
     xlabel('channel'); ylabel('channel');
     set(gca,'xtick',1:D.nchannels); set(gca,'xticklabel',chanlabels(D));
@@ -117,7 +134,7 @@ if any(eeginds_bad)
         S.mode          = 'write';
         S.prefix        = newprefix;
         S.montage       = montagefname;
-        S.keepothers    = 0; % must be zero!
+        S.keepothers    = 1;
         S.keepsensors   = 1;
         S.updatehistory = 1;
         
