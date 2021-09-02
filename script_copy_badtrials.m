@@ -1,10 +1,15 @@
 % Quick script to apply bad trials from one SPM12 MEEG file to another. 
 %  (jt 01/Sep/21)
 
+%% Parameters
+
 % Filenames and output prefix:
 fname_arts      = ls('apbfMICA_*.mat'); % EDIT ME
 fname_noarts    = ls('MICA_*.mat'); % EDIT ME
 prefix_out      = 'icopied_'; % EDIT ME if you like
+
+
+%% Begin
 
 % Load and check:
 D_arts = spm_eeg_load(fname_arts);

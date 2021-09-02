@@ -1,10 +1,10 @@
 % Get ERP component latency (fractional area latency and peak latency).
 %  jt 17/04/2020
 
-%% Parameters
+%% Parameters % EDIT THESE
 
 %fname = 'grandmean_experts.mat'; % fill this in!
-fname = 'maeMICA_ffMdspmeeg_501_stream_av.mat';
+fname = 'maeMICA_ffMdspmeeg_501_stream_av.mat'; 
 
 twin = [300 450];  % time window in ms
 %cond = 'studyFace'; % label of condition of interest
