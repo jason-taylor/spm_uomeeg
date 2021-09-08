@@ -42,5 +42,5 @@ spm_eeg_plotScalpData(md,eegpos,eeglabs,opts);
 title(sprintf('Topography of %s (%d-%dHz %d-%dms)',strrep(cond,'_',' '),fwin,twin));
 
 % Save it? -- uncomment to save!
-%saveas(fig,sprintf('Topo_%s_%d-%dms.fig',strrep(cond,' ','_'),twin),'fig');
-%saveas(fig,sprintf('Topo_%s_%d-%dms.png',strrep(cond,' ','_'),twin),'png');
+%saveas(fig,sprintf('Topo_%s_%d-%dHz_%d-%dms.fig',strrep(cond,' ','_'),fwin,twin),'fig');
+%saveas(fig,sprintf('Topo_%s__%d-%dHz_%d-%dms.png',strrep(cond,' ','_'),fwin,twin),'png');
