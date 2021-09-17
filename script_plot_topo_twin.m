@@ -8,6 +8,10 @@ fname   = 'Merged_CG_erp_nback.mat';
 twin    = [300 500]; % (ms) start and end of time-window
 cond    = 'target1 CG_erp_nback';
 
+% % Uncomment to plot the array on a solid green topography:
+% twin    = [];
+% cond    = [];
+
 % Topo options (see spm_eeg_plotScalpData.m)
 opts = [];
 opts.type      = 'EEG'; % channel type (e.g., 'EEG')
@@ -29,8 +33,12 @@ eeglabs = chanlabels(D,eeginds);
 eegpos = coor2D(D,eeginds);
 
 % Extract data, average over time-window:
-d = selectdata(D,eeglabs,twin/1000,cond);
-md = squeeze(mean(d,2));
+if isempty(twin) && isempty(cond)
+    md = zeros(length(eeginds),1);
+else
+    d = selectdata(D,eeglabs,twin/1000,cond);
+    md = squeeze(mean(d,2));
+end
 
 % Plot topography:
 fig = figure('color','w');
@@ -38,8 +46,17 @@ opts.f = fig; % use new figure
 spm_eeg_plotScalpData(md,eegpos,eeglabs,opts);
 
 % Give it a title:
-title(sprintf('Topography of %s (%d-%dms)',strrep(cond,'_',' '),twin));
+if isempty(twin) && isempty(cond)
+    colorbar off
+else
+    title(sprintf('Topography of %s (%d-%dms)',strrep(cond,'_',' '),twin));
+end
 
 % Save it? -- uncomment to save!
-%saveas(fig,sprintf('Topo_%s_%d-%dms.fig',strrep(cond,' ','_'),twin),'fig');
-%saveas(fig,sprintf('Topo_%s_%d-%dms.png',strrep(cond,' ','_'),twin),'png');
+if isempty(twin) && isempty(cond)
+    saveas(fig,'EEGarray.fig','fig');
+    saveas(fig,'EEGarray.png','png');
+else
+    saveas(fig,sprintf('Topo_%s_%d-%dms.fig',strrep(cond,' ','_'),twin),'fig');
+    saveas(fig,sprintf('Topo_%s_%d-%dms.png',strrep(cond,' ','_'),twin),'png');
+end
