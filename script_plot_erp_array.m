@@ -5,43 +5,36 @@
 %% Parameters:
 
 % Project directory (change this!!):
-%proj_dir = 'M:\Jason_Taylor\AlzWordStream\v03\subjects\grandaverages'
-proj_dir = 'C:\work\data\izzy_tasnim\preproc\jason_preproc\s204';
-
-% Channels (in the desired array):
-chans = {
-    ''   'Fz'  ''    % <- skips blanks!
-    'C1' 'Cz'  'C2'
-    ''   'Pz'  ''
-};
+proj_dir = 'C:\Work\data\MEEG_timedomain_practical\Output';
 
 % Filenames (with subdirectories, as appropriate):
 fnames = {
-%    'ya21\wN400_fmaestim_dfMica_ffMspmeeg_ya21_stream_av.mat'
-%    'oa08\wN400_fmaestim_dfMica_ffMspmeeg_oa08_stream_av.mat'
-    'mafbMICA_effdMspmeeg_204.mat'
+    'maeffMdspmeeg_run_01_sss.mat'
+};
+
+% Channels (in the desired array):
+chans = {
+    ''       'EEG068' ''         % <- blanks will be skipped
+    'EEG071' 'EEG072' 'EEG070'
+    ''       'EEG074' ''
 };
 
 % Condition labels:
-%conds = {'SA','SR','UR'};
-conds = {'NearCong1', 'NearIncong1', 'VibeOnly1'};
+conds = {'Famous','Unfamiliar','Scrambled'};
 
 % Plot colours (fnames x conds)
 pc = {
-    'b' 'r' [.4 .4 .4]
-%    'r' 'r' 'r'
+    'b' 'g' 'r';
 };
 
 % Plot line styles (fnames x conds)
 pl = {
-    '-' '--' ':'
-%    ':' '--' '-'
+    '-' '-' ':'
 };
 
 % Line widths (fnames x conds)
 pw = {
     2   2   2
-%    1   1   2
 };
 
 
@@ -143,7 +136,7 @@ end
 % move the legend to empty space and remove the box with the second line of
 % code.
 
-leg = legend('YA assoc','YA rel','YA unrel','OA assoc','OA rel','OA unrel');
+leg = legend(conds);
 %set(leg,'box','off');
 
 

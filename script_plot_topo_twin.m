@@ -4,9 +4,9 @@
 %% Parameters
 
 % Filename, time window, condition:
-fname   = 'Merged_CG_erp_nback.mat';
-twin    = [300 500]; % (ms) start and end of time-window
-cond    = 'target1 CG_erp_nback';
+fname   = 'maeffMdspmeeg_run_01_sss.mat';
+twin    = [150 200]; % (ms) start and end of time-window
+cond    = 'Famous';
 
 % % Uncomment to plot the array on a solid green topography:
 % twin    = [];
