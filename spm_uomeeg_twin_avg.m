@@ -121,9 +121,9 @@ for i=1:length(D)
         
         case 'time'
             
-            if i==1
+            %if i==1
                 twdatacell{i} = zeros([length(chans) length(twins) length(conds)]);
-            end
+            %end
             
             for tw=1:length(twins)
                 twin=twins{tw};
@@ -137,9 +137,9 @@ for i=1:length(D)
             
             if length(D{1}.time)>1 % TF
                 
-                if i==1
+                %if i==1
                     twdatacell{i} = zeros([length(chans) length(fwins) length(twins) length(conds)]);
-                end
+                %end
                 
                 for tw=1:length(twins)
                     twin=twins{tw};
@@ -155,9 +155,9 @@ for i=1:length(D)
                 end
                 
             else % spectra
-                if i==1
+                %if i==1
                     twdatacell{i} = zeros([length(chans) length(fwins) length(conds)]);
-                end
+                %end
                 
                 for fq=1:length(fwins)
                     fwin=fwins{fq};
