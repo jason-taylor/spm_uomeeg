@@ -1,33 +1,35 @@
-function [D,montagefname,montage] = spm_uomeeg_channelrepair(S)
-%  FORMAT: [D,montagefname,montage] = spm_uomeeg_channelrepair(S)
+function [D,montagefname,montage] = spm_uomeeg_currentdensity(S)
+%  FORMAT: [D,montagefname,montage] = spm_uomeeg_currentdensity(S)
+%  
+%  Computes surface Laplacian (current density) using FieldTrip's
+%  ft_currentdensity (hacked to output montage) and applies it using
+%  spm_eeg_montage.
+% 
 %  INPUT: Struct 'S' with fields:
 %   S.D            - MEEG object or filename of MEEG object
 %   S.montagefname - Filename for output montage
-%   S.fixbads      - Apply interpolation montage? (def: 0 (no))
-%   S.newprefix    - (if fixbads) Output prefix of interpolated data file
+%   S.newprefix    - Output prefix of data file
 %  OUTPUT:
 %   D
-%   montage        - montage for interpolating bad channels
+%   montage        - montage for Laplacian
 %   montagefname   - montage filename
 %  NOTE:
-%   Requires function ft_channelrepair_jt.m (hacked to output the repair
-%   montage) to be in the spm/external/fieldtrip folder.
+%   Requires function ft_currentdensity_jt.m (hacked to output the montage) 
+%   to be in the spm/external/fieldtrip folder.
 %
 %  spm_uomeeg tools
-%  by Jason Taylor (09/Mar/2018) jason.taylor@manchester.ac.uk
-%   + 21/Aug/2019 jt: fixed indexing of repair (failed when EOG weren't last!)
-%   + 17/May/2021 jt: interpolation now ignores non-EEG channels
-
+%  by Jason Taylor (29/04/2022) jason.taylor@manchester.ac.uk
+%
 %-------------------------------------------------------------------------
 
-% - This requires a hacked version of Field Trip's channel repair function,
-%   ft_channelrepair_jt.m -- unfortunately, this must be placed in the same
-%   directory as the original. Type 'which ft_channelrepair' to find out
+% - This requires a hacked version of Field Trip's currentdensity function,
+%   ft_currentdensity_jt.m -- unfortunately, this must be placed in the same
+%   directory as the original. Type 'which ft_currentdensity' to find out
 %   where to copy the modified file.
-if isempty(which('ft_channelrepair_jt'))
-    ftdir = fileparts(which('ft_channelrepair'));
-    fprintf('\nCannot find ft_channelrepair_jt.m !!\n')
-    error('ERROR: ft_channelrepair_jt.m not found in %s\n',ftdir);
+if isempty(which('ft_currentdensity_jt'))
+    ftdir = fileparts(which('ft_currentdensity'));
+    fprintf('\nCannot find ft_currentdensity_jt.m !!\n')
+    error('ERROR: ft_currentdensity_jt.m not found in %s\n',ftdir);
 end
 
 %% Load SPM-format data file:
@@ -36,32 +38,21 @@ D = spm_eeg_load(S.D);
 try montagefname = S.montagefname;
 catch, montagefname = sprintf('montage_bcinterp_%s.mat',fstem);
 end
-try fixbads = S.fixbads; catch, fixbads = 0; end
-if fixbads
-    try newprefix = S.newprefix; catch, newprefix = 'Mbcinterp_'; end
+try newprefix = S.newprefix; 
+catch, newprefix = 'MLaplace_'; 
 end
 
 fprintf('\n\n');
 fprintf('++ %s\n',datestr(now));
-fprintf('++ RUNNING spm_uomeeg_channelrepair ON %s\n',D.fname);
-if fixbads
-    fprintf('++ USING: apply interpolation, new prefix: %s\n',newprefix);
-end
+fprintf('++ RUNNING spm_uomeeg_currentdensity ON %s\n',D.fname);
+fprintf('++ OUTPUT prefix: %s\n',newprefix);
 
 
-%% Compute bad-channel interpolation weights:
+%% Compute Laplace transform weights:
 
-% Good:
-eeginds_good = indchantype(D,'EEG','GOOD');
-eegchans_good = chanlabels(D,eeginds_good);
-%pos_good = coor2D(D,eeginds_good); % not necessary? (jt 21/Aug/2019)
+eeginds = indchantype(D,'EEG');
+eegchans = chanlabels(D,eeginds);
 
-% Bad:
-eeginds_bad = D.badchannels;
-eegchans_bad = chanlabels(D,eeginds_bad);
-
-if any(eeginds_bad)
-    
     % Convert to fieldtrip format:
     data = spm2fieldtrip(D);
     
@@ -79,24 +70,23 @@ if any(eeginds_bad)
     data.elec.label = data.elec.label(chkeep);
     try data.elec.tra = data.elec.tra(chkeep,chkeep); catch; end
         
-    % Interpolate:
+    % Create Laplace montage:
     cfg = [];
     cfg.method         = 'spline';
-    cfg.order          = 4;
-    cfg.badchannel     = eegchans_bad';
-    cfg.missingchannel = {};
-    cfg.neighbours     = [];
+    %cfg.order          = 4;
+    %cfg.missingchannel = {};
+    %cfg.neighbours     = [];
     cfg.trials         = 'all';
-    cfg.lambda         = 1e-5;
+    %cfg.lambda         = 1e-5;
     
-    [~,repair] = ft_channelrepair_jt(cfg,data);
-    [~,~,eeginds_bad_interp] = intersect(eegchans_bad,data.elec.label,'stable');
+    [~,montage] = ft_currentdensity_jt(cfg,data);
+    %[~,~,eeginds_interp] = intersect(eegchans,data.elec.label,'stable');
     % ^ added to align indices in repair and tra! (jt 21/Aug/2019)
     %   Thanks to Emily Pye and Nayab Begum for finding this bug.
     
     tra = eye(length(indchantype(D,'EEG')));
-    tra(eeginds_bad,:) = 0;
-    tra(eeginds_bad,eeginds_good) = repair(eeginds_bad_interp,:);
+    %tra(eeginds_bad,:) = 0;
+    %tra(eeginds_bad,eeginds) = repair(eeginds_interp,:);
     % ^ edited to align indices in repair and tra! (jt 21/Aug/2019)
     
     % Save as montage file:
