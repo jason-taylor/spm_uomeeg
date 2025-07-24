@@ -7,6 +7,7 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %     D          - filename (.mat) of SPM12 M/EEG object (Default=prompt)
 %     cond       - condition label ([] plots empty array)
 %     twin       - [start end] of time-window (ms)
+%     fwin       - [start end] of frequency window (Hz)
 %     style      - 'spm'|'eeglab' style of topo plot (default='spm')
 %     chantype   - channel type (default='EEG')
 %     title      - 'auto'|'none'|'(your title)' include title (default='auto')
@@ -41,6 +42,7 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 % by Jason Taylor (18/July/2025) jason.taylor@manchester.ac.uk
 %  based partly on the old script_plot_topo_twin.m
 %  essentially a wrapper for spm_eeg_plotScalpData (SPM) / topoplot (EEGLAB)
+%  + jt (24/July/2025) added frequency window option
 
 % Examples
 %
@@ -49,6 +51,16 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %  S.D = 'wgrandaverage.mat'; 
 %  S.cond = 'unrelated-related'; 
 %  S.twin = [300 500]; 
+%  spm_uomeeg_topo(S);
+%
+% Simple SPM example with time/frequency window:
+%  S = [];
+%  S.D = 'wgrandaverage.mat'; 
+%  S.cond = 'unrelated-related'; 
+%  S.twin = [300 500];
+%  S.fwin = [4 7];
+%  S.colormap = 'autumn';
+%  S.maplimits = 'minmax';
 %  spm_uomeeg_topo(S);
 %
 % Simple EEGLAB topoplot example:
@@ -66,6 +78,7 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %  S.D = 'wgrandaverage.mat'; 
 %  S.cond = 'unrelated-related'; 
 %  S.twin = [300 500]; 
+%  S.fwin = [3 7];
 %  S.style = 'spm';
 %  S.fighandle = gcf; % or use existing figure handle
 %  S.axhandle = gca; % or use existing axes handle
@@ -88,10 +101,8 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 % Channel array example (no data)
 %  S = [];
 %  S.D = 'wgrandaverage.mat'; 
-%  S.cond = []; 
 %  S.style = 'eeglab'; % or 'spm' 
 %  S.eeghcolor = [.8 .8 .8];
-%  S.spmbuttons = 'off';
 %  S.electrodes = 'labels';
 %  S.colormap = [1 1 1; .95 .95 .95]; % 'white' for no color; 'jet' for green
 %  spm_uomeeg_topo(S);
@@ -102,6 +113,7 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 try D = spm_eeg_load(S.D);       catch, D=spm_eeg_load;        end
 try cond = S.cond;               catch, cond=[];               end
 try twin = S.twin;               catch, twin=[];               end
+try fwin = S.fwin;               catch, fwin=[];               end
 try style = S.style;             catch, style = 'spm';         end
 try chantype = S.chantype;       catch, chantype='EEG';        end
 try dotitle = S.title;           catch, dotitle='auto';        end
@@ -135,15 +147,31 @@ senspos = D.sensors(chantype).chanpos;
 senslab = D.sensors(chantype).label;
 
 % Extract data, average over time-window:
-if isempty(twin) && isempty(cond)
+if isempty([twin fwin cond])
     % Plot empty array (solid green topography)
     topovec = zeros(length(eeginds),1);
     usecolorbar = 'no';
     useclim = [-100 100];
+    ttl = 'Channel Array';
 else
-    % Extract data, average:
-    d = selectdata(D,eeglabs,twin/1000,cond);
-    topovec = squeeze(mean(d,2));
+    % Extract data, average
+    ttl = sprintf('Topography of %s ',strrep(cond,'_',' '));
+    if ~isempty(twin) && isempty(fwin) 
+        % Time-window only (time-domain data)
+        d = selectdata(D,eeglabs,twin/1000,cond); % /1000 ms-->sec
+        topovec = squeeze(mean(d,2));
+        ttl = sprintf('%s (%d-%dms)',ttl,twin);
+    elseif ~isempty(twin) && ~isempty(fwin)
+        % Time-and-frequency window (TF data)
+        d = selectdata(D,eeglabs,fwin,twin/1000,cond); % /1000 ms-->sec
+        topovec = squeeze(mean(mean(d,2),3));
+        ttl = sprintf('%s (%d-%dms, %d-%dHz)',ttl,twin,fwin);
+    elseif isempty(twin) && ~isempty(fwin)
+        % Frequency-window only (spectra)
+        d = selectdata(D,eeglabs,fwin,[],cond); 
+        topovec = squeeze(mean(d,2));
+        ttl = sprintf('%s (%d-%dHz)',ttl,fwin);
+    end
 
     % Determine colour limits
     if isnumeric(maplimits)
@@ -305,16 +333,11 @@ end
 % Give it a title:
 switch dotitle
     case 'auto'
-        if isempty(twin) && isempty(cond)
-            colorbar off
-            title(sprintf('Channel Array\n'));
-        else
-            title(sprintf('Topography of %s (%d-%dms)\n',strrep(cond,'_',' '),twin));
-        end
+        title(sprintf('%s\n',ttl))
     case 'none'
         title('');
     otherwise
-        title(sprintf('%s\n',dotitle));
+        title(sprintf('%s\n',dotitle)); % user-provided title
 end
 
 % Handles
