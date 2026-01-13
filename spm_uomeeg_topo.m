@@ -5,9 +5,14 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 % Input:
 %   S struct with (optional) subfields:
 %     D          - filename (.mat) of SPM12 M/EEG object (Default=prompt)
-%     cond       - condition label ([] plots empty array)
+% - extract data to plot - 
+%     cond       - condition label (or [] to plot channel array w/o data)
 %     twin       - [start end] of time-window (ms)
 %     fwin       - [start end] of frequency window (Hz)
+%  - or provide your own -
+%     topovec    - [vector 1xNchans] provide data to plot 
+%                - use zeros(1,Nchans) to plot array with empty data
+%  - basic formatting options -
 %     style      - 'spm'|'eeglab' style of topo plot (default='spm')
 %     chantype   - channel type (default='EEG')
 %     title      - 'auto'|'none'|'(your title)' include title (default='auto')
@@ -43,6 +48,8 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %  based partly on the old script_plot_topo_twin.m
 %  essentially a wrapper for spm_eeg_plotScalpData (SPM) / topoplot (EEGLAB)
 %  + jt (24/July/2025) added frequency window option
+%  + jt (18/Dec/2025) added topovec option (user-provided topo data vector)
+%  + jt (13/Jan/2026) fixed error with eeglab style (remove E*G sensors)
 
 % Examples
 %
@@ -61,6 +68,12 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %  S.fwin = [4 7];
 %  S.colormap = 'autumn';
 %  S.maplimits = 'minmax';
+%  spm_uomeeg_topo(S);
+%
+% Simple SPM example with topo data vector provided:
+%  S = [];
+%  S.D = 'wgrandaverage.mat'; 
+%  S.topovec = rand(1,64); % obvs provide something meaningful
 %  spm_uomeeg_topo(S);
 %
 % Simple EEGLAB topoplot example:
@@ -101,6 +114,7 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 % Channel array example (no data)
 %  S = [];
 %  S.D = 'wgrandaverage.mat'; 
+%  S.topovec = zeros(1,64);
 %  S.style = 'eeglab'; % or 'spm' 
 %  S.eeghcolor = [.8 .8 .8];
 %  S.electrodes = 'labels';
@@ -111,9 +125,12 @@ function [topovec,topoimage,handlestruct] = spm_uomeeg_topo(S)
 %% Check inputs
 
 try D = spm_eeg_load(S.D);       catch, D=spm_eeg_load;        end
-try cond = S.cond;               catch, cond=[];               end
-try twin = S.twin;               catch, twin=[];               end
-try fwin = S.fwin;               catch, fwin=[];               end
+try topovec = S.topovec;         catch, topovec = [];          end
+if isempty(topovec)
+    try cond = S.cond;               catch, cond=[];               end
+    try twin = S.twin;               catch, twin=[];               end
+    try fwin = S.fwin;               catch, fwin=[];               end
+end
 try style = S.style;             catch, style = 'spm';         end
 try chantype = S.chantype;       catch, chantype='EEG';        end
 try dotitle = S.title;           catch, dotitle='auto';        end
@@ -145,14 +162,24 @@ eeglabs = chanlabels(D,eeginds);
 eegpos  = coor2D(D,eeginds);
 senspos = D.sensors(chantype).chanpos;
 senslab = D.sensors(chantype).label;
+% Hack (in case E*G also represented in sensors type EEG):
+[senslab,ind_sens] = intersect(senslab,eeglabs);
+senspos = senspos(ind_sens,:);
 
 % Extract data, average over time-window:
-if isempty([twin fwin cond])
-    % Plot empty array (solid green topography)
+if isempty(topovec) && isempty(cond)
     topovec = zeros(length(eeginds),1);
-    usecolorbar = 'no';
-    useclim = [-100 100];
-    ttl = 'Channel Array';
+end
+if ~isempty(topovec)
+    if all(topovec==0)
+        % Plot empty array (solid green topography)
+        usecolorbar = 'no';
+        useclim = [-100 100];
+        ttl = 'Channel Array';
+    else
+        % User-provided topography data vector
+        ttl = 'Topography of user-provided data';
+    end
 else
     % Extract data, average
     ttl = sprintf('Topography of %s ',strrep(cond,'_',' '));
@@ -172,21 +199,21 @@ else
         topovec = squeeze(mean(d,2));
         ttl = sprintf('%s (%d-%dHz)',ttl,fwin);
     end
+end
 
-    % Determine colour limits
-    if isnumeric(maplimits)
-        useclim = maplimits;
-    else
-        switch maplimits
-            case 'absmax'
-                useclim = [-max(abs(topovec)) max(abs(topovec))];
-            case 'minmax'
-                useclim = [min(topovec) max(topovec)];
-            case 'zeromax'
-                useclim = [0 max(topovec)];
-            case 'minzero'
-                useclim = [min(topovec) 0];
-        end
+% Determine colour limits
+if isnumeric(maplimits)
+    useclim = maplimits;
+else
+    switch maplimits
+        case 'absmax'
+            useclim = [-max(abs(topovec)) max(abs(topovec))];
+        case 'minmax'
+            useclim = [min(topovec) max(topovec)];
+        case 'zeromax'
+            useclim = [0 max(topovec)];
+        case 'minzero'
+            useclim = [min(topovec) 0];
     end
 end
 
